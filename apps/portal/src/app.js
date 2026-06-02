@@ -15,7 +15,7 @@ import {getActivePage, isAccountPage, isOfferPage} from './pages';
 import ActionHandler from './actions';
 import {getGiftRedemptionErrorMessage} from './utils/gift-redemption-notification';
 import './app.css';
-import {hasRecommendations, arePaidMembersEnabled, createNotification, createPopupNotification, hasAvailablePrices, getCurrencySymbol, getFirstpromoterId, getPriceIdFromPageQuery, getProductCadenceFromPrice, getProductFromId, getQueryPrice, getSiteDomain, isActiveOffer, isRetentionOffer, isComplimentaryMember, isInviteOnly, isPaidMember, isRecentMember, isSentryEventAllowed, removePortalLinkFromUrl} from './utils/helpers';
+import {hasRecommendations, arePaidMembersEnabled, createNotification, createPopupNotification, hasAvailablePrices, getCurrencySymbol, getFirstpromoterId, getPriceIdFromPageQuery, getProductCadenceFromPrice, getProductFromId, getQueryPrice, getSiteDomain, hasOfferLinksAlwaysOpenPortal, isActiveOffer, isRetentionOffer, isComplimentaryMember, isInviteOnly, isPaidMember, isRecentMember, isSentryEventAllowed, removePortalLinkFromUrl} from './utils/helpers';
 import {validateHexColor} from './utils/sanitize-html';
 import {handleDataAttributes} from './data-attributes';
 
@@ -970,23 +970,25 @@ export default class App extends React.Component {
                     return;
                 }
 
-                if (!portalButton) {
+                // With the `offerLinksAlwaysOpenPortal` flag, offer links always open the Portal
+                // offer page. Without it, the legacy behaviour sends visitors straight to
+                // checkout/signup whenever the Portal button is hidden.
+                if (!hasOfferLinksAlwaysOpenPortal({site}) && !portalButton) {
                     const product = getProductFromId({site, productId: offer.tier.id});
                     const price = offer.cadence === 'month' ? product.monthlyPrice : product.yearlyPrice;
+                    const {tierId, cadence} = getProductCadenceFromPrice({site, priceId: price.id});
                     this.dispatchAction('openPopup', {
                         page: 'loading'
                     });
                     if (member) {
-                        const {tierId, cadence} = getProductCadenceFromPrice({site, priceId: price.id});
                         this.dispatchAction('checkoutPlan', {plan: price.id, offerId, tierId, cadence});
                     } else {
-                        const {tierId, cadence} = getProductCadenceFromPrice({site, priceId: price.id});
                         this.dispatchAction('signup', {plan: price.id, offerId, tierId, cadence});
                     }
                 } else {
                     this.dispatchAction('openPopup', {
                         page: 'offer',
-                        pageData: offerData?.offers[0]
+                        pageData: offer
                     });
                 }
             } catch (e) {

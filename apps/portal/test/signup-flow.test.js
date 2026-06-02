@@ -10,7 +10,7 @@ const offerSetup = async ({site, member = null, offer}) => {
     const ghostApi = setupGhostApi({siteUrl: 'https://example.com'});
     ghostApi.init = vi.fn(() => {
         return Promise.resolve({
-            site: deepClone(site),
+            site: deepClone({...site, labs: {...site.labs, offerLinksAlwaysOpenPortal: true}}),
             member: member ? deepClone(member) : null
         });
     });
@@ -44,6 +44,11 @@ const offerSetup = async ({site, member = null, offer}) => {
     let emailInput, nameInput, continueButton, chooseBtns, signinButton, siteTitle, offerName, offerDescription, freePlanTitle, monthlyPlanTitle, yearlyPlanTitle, fullAccessTitle;
 
     if (popupIframeDocument) {
+        // The offer page renders only after the async site.offer() request resolves, so wait for
+        // its content before capturing queries to avoid snapshotting the loading/empty popup.
+        await waitFor(() => {
+            expect(within(popupIframeDocument).queryByText(offer.display_title)).toBeInTheDocument();
+        });
         emailInput = within(popupIframeDocument).queryByLabelText(/email/i);
         nameInput = within(popupIframeDocument).queryByLabelText(/name/i);
         continueButton = within(popupIframeDocument).queryByRole('button', {name: 'Continue'});
@@ -634,18 +639,56 @@ describe('Signup', () => {
             let offerId = FixtureOffer.id;
             expect(popupFrame).toBeInTheDocument();
             expect(triggerButtonFrame).not.toBeInTheDocument();
-            expect(siteTitle).not.toBeInTheDocument();
-            expect(emailInput).not.toBeInTheDocument();
-            expect(nameInput).not.toBeInTheDocument();
-            expect(signinButton).not.toBeInTheDocument();
-            expect(submitButton).not.toBeInTheDocument();
-            expect(offerName).not.toBeInTheDocument();
-            expect(offerDescription).not.toBeInTheDocument();
+            expect(siteTitle).toBeInTheDocument();
+            expect(emailInput).toBeInTheDocument();
+            expect(nameInput).toBeInTheDocument();
+            expect(signinButton).toBeInTheDocument();
+            expect(submitButton).toBeInTheDocument();
+            expect(offerName).toBeInTheDocument();
+            expect(offerDescription).toBeInTheDocument();
+            expect(ghostApi.member.checkoutPlan).not.toHaveBeenCalled();
+
+            fireEvent.change(emailInput, {target: {value: 'jamie@example.com'}});
+            fireEvent.change(nameInput, {target: {value: 'Jamie Larsen'}});
+            fireEvent.click(submitButton);
 
             expect(ghostApi.member.checkoutPlan).toHaveBeenLastCalledWith({
-                email: undefined,
-                name: undefined,
-                offerId: offerId,
+                email: 'jamie@example.com',
+                name: 'Jamie Larsen',
+                offerId,
+                plan: planId,
+                tierId: tier.id,
+                cadence: 'month'
+            });
+
+            window.location.hash = '';
+        });
+
+        test('to an offer via link with portal disabled goes straight to checkout when the flag is off (legacy)', async () => {
+            const site = {
+                ...FixtureSite.singleTier.basic,
+                portal_button: false
+            };
+
+            const ghostApi = setupGhostApi({siteUrl: 'https://example.com'});
+            ghostApi.init = vi.fn(() => Promise.resolve({site: deepClone(site), member: null}));
+            ghostApi.member.sendMagicLink = vi.fn(() => Promise.resolve('success'));
+            ghostApi.site.offer = vi.fn(() => Promise.resolve({offers: [FixtureOffer]}));
+            ghostApi.member.checkoutPlan = vi.fn(() => Promise.resolve());
+
+            window.location.hash = `#/portal/offers/${FixtureOffer.id}`;
+            appRender(<App api={ghostApi} />);
+
+            const tier = FixtureSite.singleTier.basic.products.find(p => p.type === 'paid');
+            const planId = tier.monthlyPrice.id;
+
+            // Legacy behaviour: with the flag off and the Portal button hidden, the offer link sends
+            // a visitor straight to checkout without rendering the offer page.
+            await waitFor(() => {
+                expect(ghostApi.member.checkoutPlan).toHaveBeenCalled();
+            });
+            expect(ghostApi.member.checkoutPlan).toHaveBeenLastCalledWith({
+                offerId: FixtureOffer.id,
                 plan: planId,
                 tierId: tier.id,
                 cadence: 'month'
@@ -892,18 +935,23 @@ describe('Signup', () => {
             let offerId = FixtureOffer.id;
             expect(popupFrame).toBeInTheDocument();
             expect(triggerButtonFrame).not.toBeInTheDocument();
-            expect(siteTitle).not.toBeInTheDocument();
-            expect(emailInput).not.toBeInTheDocument();
-            expect(nameInput).not.toBeInTheDocument();
-            expect(signinButton).not.toBeInTheDocument();
-            expect(submitButton).not.toBeInTheDocument();
-            expect(offerName).not.toBeInTheDocument();
-            expect(offerDescription).not.toBeInTheDocument();
+            expect(siteTitle).toBeInTheDocument();
+            expect(emailInput).toBeInTheDocument();
+            expect(nameInput).toBeInTheDocument();
+            expect(signinButton).toBeInTheDocument();
+            expect(submitButton).toBeInTheDocument();
+            expect(offerName).toBeInTheDocument();
+            expect(offerDescription).toBeInTheDocument();
+            expect(ghostApi.member.checkoutPlan).not.toHaveBeenCalled();
+
+            fireEvent.change(emailInput, {target: {value: 'jamie@example.com'}});
+            fireEvent.change(nameInput, {target: {value: 'Jamie Larsen'}});
+            fireEvent.click(submitButton);
 
             expect(ghostApi.member.checkoutPlan).toHaveBeenLastCalledWith({
-                email: undefined,
-                name: undefined,
-                offerId: offerId,
+                email: 'jamie@example.com',
+                name: 'Jamie Larsen',
+                offerId,
                 plan: planId,
                 tierId: singleTier.id,
                 cadence: 'month'

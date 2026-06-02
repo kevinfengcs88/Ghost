@@ -71,6 +71,10 @@ const features: Feature[] = [{
     title: 'Get helper deduplication',
     description: 'Deduplicate identical {{#get}} helper queries within a single request to avoid redundant database calls',
     flag: 'getHelperDeduplication'
+}, {
+    title: 'Offer links always open Portal',
+    description: 'Offer links always open the Portal offer page, regardless of the Portal button setting',
+    flag: 'offerLinksAlwaysOpenPortal'
 }];
 
 const AlphaFeatures: React.FC = () => {

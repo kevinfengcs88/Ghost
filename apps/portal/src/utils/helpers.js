@@ -274,6 +274,10 @@ export function arePaidMembersEnabled({site}) {
     return site?.paid_members_enabled === true;
 }
 
+export function hasOfferLinksAlwaysOpenPortal({site}) {
+    return site?.labs?.offerLinksAlwaysOpenPortal === true;
+}
+
 export function isSigninAllowed({site}) {
     return site?.members_signup_access !== 'none';
 }
