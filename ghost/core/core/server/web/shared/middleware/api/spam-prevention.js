@@ -36,6 +36,8 @@ let spamUserLogin = spam.user_login || {};
 let spamSendVerificationCode = spam.send_verification_code || {};
 let spamUserVerification = spam.user_verification || {};
 let spamMemberLogin = spam.member_login || {};
+let spamCheckoutSessionGlobal = spam.checkout_session_global || {};
+let spamCheckoutSessionEmail = spam.checkout_session_email || {};
 let spamContentApiKey = spam.content_api_key || {};
 let spamWebmentionsBlock = spam.webmentions_block || {};
 let spamEmailPreviewBlock = spam.email_preview_block || {};
@@ -51,6 +53,8 @@ let webmentionsBlockInstance;
 let userLoginInstance;
 let membersAuthInstance;
 let membersAuthEnumerationInstance;
+let checkoutSessionGlobalInstance;
+let checkoutSessionEmailInstance;
 let userResetInstance;
 let sendVerificationCodeInstance;
 let userVerificationInstance;
@@ -254,6 +258,66 @@ const membersAuthEnumeration = () => {
     }
 
     return membersAuthEnumerationInstance;
+};
+
+const checkoutSessionGlobal = () => {
+    const ExpressBrute = require('express-brute');
+    const BruteKnex = require('brute-knex');
+    const db = require('../../../../data/db');
+
+    store = store || new BruteKnex({
+        tablename: 'brute',
+        createTable: false,
+        knex: db.knex
+    });
+
+    if (!checkoutSessionGlobalInstance) {
+        checkoutSessionGlobalInstance = new ExpressBrute(store,
+            extend({
+                attachResetToRequest: true,
+                failCallback(req, res, next, nextValidRequestDate) {
+                    return next(new errors.TooManyRequestsError({
+                        message: `Too many checkout attempts, try again in ${moment(nextValidRequestDate).fromNow(true)}`,
+                        context: tpl(messages.tooManySigninAttempts.context),
+                        help: tpl(messages.tooManySigninAttempts.context)
+                    }));
+                },
+                handleStoreError: handleStoreError
+            }, pick(spamCheckoutSessionGlobal, spamConfigKeys))
+        );
+    }
+
+    return checkoutSessionGlobalInstance;
+};
+
+const checkoutSessionEmail = () => {
+    const ExpressBrute = require('express-brute');
+    const BruteKnex = require('brute-knex');
+    const db = require('../../../../data/db');
+
+    store = store || new BruteKnex({
+        tablename: 'brute',
+        createTable: false,
+        knex: db.knex
+    });
+
+    if (!checkoutSessionEmailInstance) {
+        checkoutSessionEmailInstance = new ExpressBrute(store,
+            extend({
+                attachResetToRequest: true,
+                failCallback(req, res, next, nextValidRequestDate) {
+                    return next(new errors.TooManyRequestsError({
+                        message: `Too many checkout attempts for this email, try again in ${moment(nextValidRequestDate).fromNow(true)}`,
+                        context: tpl(messages.tooManySigninAttempts.context),
+                        help: tpl(messages.tooManySigninAttempts.context)
+                    }));
+                },
+                handleStoreError: handleStoreError
+            }, pick(spamCheckoutSessionEmail, spamConfigKeys))
+        );
+    }
+
+    return checkoutSessionEmailInstance;
 };
 
 const otcVerificationEnumeration = () => {
@@ -502,6 +566,8 @@ module.exports = {
     userVerification: userVerification,
     membersAuth: membersAuth,
     membersAuthEnumeration: membersAuthEnumeration,
+    checkoutSessionGlobal: checkoutSessionGlobal,
+    checkoutSessionEmail: checkoutSessionEmail,
     otcVerification: otcVerification,
     otcVerificationEnumeration: otcVerificationEnumeration,
     userReset: userReset,
@@ -518,6 +584,8 @@ module.exports = {
         userLoginInstance = undefined;
         membersAuthInstance = undefined;
         membersAuthEnumerationInstance = undefined;
+        checkoutSessionGlobalInstance = undefined;
+        checkoutSessionEmailInstance = undefined;
         userResetInstance = undefined;
         sendVerificationCodeInstance = undefined;
         userVerificationInstance = undefined;
@@ -534,6 +602,8 @@ module.exports = {
         spamSendVerificationCode = spam.send_verification_code || {};
         spamUserVerification = spam.user_verification || {};
         spamMemberLogin = spam.member_login || {};
+        spamCheckoutSessionGlobal = spam.checkout_session_global || {};
+        spamCheckoutSessionEmail = spam.checkout_session_email || {};
         spamContentApiKey = spam.content_api_key || {};
         spamOtcVerificationEnumeration = spam.otc_verification_enumeration || {};
         spamOtcVerification = spam.otc_verification || {};
