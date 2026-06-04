@@ -1,7 +1,57 @@
 import {expect, test} from '@playwright/test';
-import {globalDataRequests, mockApi} from '@tryghost/admin-x-framework/test/acceptance';
+import {globalDataRequests, mockApi, responseFixtures, updatedSettingsResponse, waitForApiRequest} from '@tryghost/admin-x-framework/test/acceptance';
 
 test.describe('Labs', async () => {
+    test('requires confirmation before enabling Automations and disables it afterwards', async ({page}) => {
+        const labsSetting = responseFixtures.settings.settings.find(setting => setting.key === 'labs');
+        const labs = JSON.parse(String(labsSetting?.value || '{}'));
+        const labsDisabled = JSON.stringify({...labs, automations: false});
+        const labsEnabled = JSON.stringify({...labs, automations: true});
+
+        const {lastApiRequests} = await mockApi({page, requests: {
+            ...globalDataRequests,
+            browseSettings: {...globalDataRequests.browseSettings, response: updatedSettingsResponse([
+                {key: 'labs', value: labsDisabled}
+            ])},
+            editSettings: {method: 'PUT', path: '/settings/', response: updatedSettingsResponse([
+                {key: 'labs', value: labsEnabled}
+            ])}
+        }});
+
+        await page.goto('/');
+
+        const labsSection = page.getByTestId('labs');
+        await labsSection.getByRole('button', {name: 'Open'}).click();
+        await labsSection.getByRole('tab', {name: 'Beta features'}).click();
+
+        const automationsToggle = labsSection.getByRole('switch', {name: 'Automations'});
+        await expect(automationsToggle).not.toBeChecked();
+
+        await automationsToggle.click();
+
+        const confirmationModal = page.getByTestId('feature-toggle-confirmation-modal');
+        await expect(confirmationModal).toBeVisible();
+        await expect(confirmationModal).toContainText('Enabling Automations is a one-way street');
+
+        await confirmationModal.getByRole('button', {name: 'Cancel'}).click();
+
+        await expect(confirmationModal).not.toBeVisible();
+        await expect(automationsToggle).not.toBeChecked();
+        expect(lastApiRequests.editSettings).toBeUndefined();
+
+        await automationsToggle.click();
+        await confirmationModal.getByRole('button', {name: 'Enable Automations'}).click();
+
+        const editSettings = await waitForApiRequest(lastApiRequests, 'editSettings');
+        expect(editSettings.body).toEqual({
+            settings: [{key: 'labs', value: labsEnabled}]
+        });
+
+        await expect(confirmationModal).not.toBeVisible();
+        await expect(automationsToggle).toBeChecked();
+        await expect(automationsToggle).toBeDisabled();
+    });
+
     test.skip('Uploading/downloading redirects', async ({page}) => {
         const {lastApiRequests} = await mockApi({page, requests: {
             ...globalDataRequests,

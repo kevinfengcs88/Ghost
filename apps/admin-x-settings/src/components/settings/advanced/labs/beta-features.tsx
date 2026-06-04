@@ -4,17 +4,35 @@ import React, {useState} from 'react';
 import {Button, FileUpload, List, showToast} from '@tryghost/admin-x-design-system';
 import {downloadRedirects, useUploadRedirects} from '@tryghost/admin-x-framework/api/redirects';
 import {downloadRoutes, useUploadRoutes} from '@tryghost/admin-x-framework/api/routes';
+import {getSettingValue} from '@tryghost/admin-x-framework/api/settings';
+import {useGlobalData} from '../../../providers/global-data-provider';
 import {useHandleError} from '@tryghost/admin-x-framework/hooks';
 
 const BetaFeatures: React.FC = () => {
+    const {settings} = useGlobalData();
     const {mutateAsync: uploadRedirects} = useUploadRedirects();
     const {mutateAsync: uploadRoutes} = useUploadRoutes();
     const handleError = useHandleError();
     const [redirectsUploading, setRedirectsUploading] = useState<boolean>(false);
     const [routesUploading, setRoutesUploading] = useState<boolean>(false);
+    const labs = JSON.parse(getSettingValue<string>(settings, 'labs') || '{}');
+    const isAutomationsEnabled = !!labs.automations;
 
     return (
         <List titleSeparator={false}>
+            <LabItem
+                action={<FeatureToggle
+                    confirmation={{
+                        title: 'Enable Automations?',
+                        prompt: 'Enabling Automations is a one-way street: once it is on, it cannot be turned off.',
+                        okLabel: 'Enable Automations',
+                        okRunningLabel: 'Enabling...'
+                    }}
+                    disabled={isAutomationsEnabled}
+                    flag="automations"
+                    label='Automations' />}
+                detail={<>Create powerful workflows that handle repetitive publishing and member tasks automatically.</>}
+                title='Automations' />
             <LabItem
                 action={<FeatureToggle flag="superEditors" />}
                 detail={<>Allows newly-assigned editors to manage members and comments in addition to regular roles.</>}
