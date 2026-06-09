@@ -197,3 +197,5 @@ packageExtensions:
 minimumReleaseAgeExclude:
   # Our own packages are published by us, so the release-age delay doesn't apply
   - "@tryghost/*"
+  # Renovate security update: file-type@21.3.1
+  - file-type@21.3.1
