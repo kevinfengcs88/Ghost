@@ -18,7 +18,7 @@ import {shouldDelayMembersDateFilterHydration, useMembersFilterState} from './ho
 import {useActiveMemberView, useMemberViews} from './hooks/use-member-views';
 import {useBrowseConfig} from '@tryghost/admin-x-framework/api/config';
 import {useBrowseMembersInfinite} from '@tryghost/admin-x-framework/api/members';
-import {useDebounce} from 'use-debounce';
+import {useDebouncedCallback} from 'use-debounce';
 import {useLocation, useSearchParams} from 'react-router';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -37,7 +37,9 @@ const MembersPage: React.FC<{timezone: string; membershipsEnabled: boolean}> = (
     const [showMobileSearch, setShowMobileSearch] = useState(false);
     const [mobileSearchOpenedByUser, setMobileSearchOpenedByUser] = useState(false);
     const [searchInput, setSearchInput] = useState(search);
-    const [debouncedSearch] = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+    const commitSearch = useDebouncedCallback((value: string) => {
+        setSearch(value);
+    }, SEARCH_DEBOUNCE_MS);
 
     const emailAnalyticsEnabled = configData?.config?.emailAnalytics === true;
 
@@ -81,15 +83,19 @@ const MembersPage: React.FC<{timezone: string; membershipsEnabled: boolean}> = (
     const shouldShowFiltersRow = hasFilters;
     const shouldShowMembersHelpCards = !hasFilterOrSearch && !shouldShowLoading && !isError && totalMembers < MEMBERS_HELP_CARDS_LIMIT;
 
+    // Keep the input in sync with the committed search whenever it changes for
+    // any reason other than typing (browser back/forward, "Show all members",
+    // saved views), and drop any pending commit so the new value wins instead
+    // of being overwritten by a stale keystroke.
     useEffect(() => {
         setSearchInput(search);
-    }, [search]);
+        commitSearch.cancel();
+    }, [search, commitSearch]);
 
-    useEffect(() => {
-        if (debouncedSearch !== search) {
-            setSearch(debouncedSearch);
-        }
-    }, [debouncedSearch, search, setSearch]);
+    const handleSearchChange = (value: string) => {
+        setSearchInput(value);
+        commitSearch(value);
+    };
 
     const handleMobileSearchToggle = () => {
         if (showMobileSearch) {
@@ -103,6 +109,11 @@ const MembersPage: React.FC<{timezone: string; membershipsEnabled: boolean}> = (
     };
 
     const filtersClassName = 'flex-col gap-4 lg:flex-row lg:items-center sidebar:gap-6 lg:gap-6';
+    const handleShowAllMembers = () => {
+        commitSearch.cancel();
+        setSearchInput('');
+        clearAll({replace: false});
+    };
 
     return (
         <MainLayout>
@@ -128,7 +139,7 @@ const MembersPage: React.FC<{timezone: string; membershipsEnabled: boolean}> = (
                                     <div className="hidden lg:flex">
                                         <MembersHeaderSearch
                                             search={searchInput}
-                                            onSearchChange={setSearchInput}
+                                            onSearchChange={handleSearchChange}
                                         />
                                     </div>
                                     <Button
@@ -171,7 +182,7 @@ const MembersPage: React.FC<{timezone: string; membershipsEnabled: boolean}> = (
                                             ariaLabel="Search members mobile"
                                             autoFocus={mobileSearchOpenedByUser}
                                             search={searchInput}
-                                            onSearchChange={setSearchInput}
+                                            onSearchChange={handleSearchChange}
                                         />
                                     </div>
                                 )}
@@ -212,7 +223,7 @@ const MembersPage: React.FC<{timezone: string; membershipsEnabled: boolean}> = (
                                     actions={
                                         <Button
                                             variant="outline"
-                                            onClick={() => clearAll({replace: false})}
+                                            onClick={handleShowAllMembers}
                                         >
                                             Show all members
                                         </Button>
