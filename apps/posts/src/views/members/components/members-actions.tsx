@@ -17,6 +17,7 @@ interface MembersActionsProps {
     nql?: string;
     search: string;
     canBulkDelete: boolean;
+    showMenu?: boolean;
     onImportComplete?: (importResponse?: ImportResponse) => void;
 }
 
@@ -37,6 +38,7 @@ const MembersActions: React.FC<MembersActionsProps> = ({
     nql,
     search,
     canBulkDelete,
+    showMenu = true,
     onImportComplete
 }) => {
     const location = useLocation();
@@ -209,59 +211,60 @@ const MembersActions: React.FC<MembersActionsProps> = ({
 
     return (
         <>
-            {/* Actions Dropdown */}
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button data-testid="members-actions" variant="outline">
-                        <LucideIcon.MoreHorizontal className="size-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    {/* Import */}
-                    <DropdownMenuItem onClick={handleImportAction}>
-                        <LucideIcon.Upload className="mr-2 size-4" />
-                        Import members
-                    </DropdownMenuItem>
+            {showMenu && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button data-testid="members-actions" variant="outline">
+                            <LucideIcon.MoreHorizontal className="size-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {/* Import */}
+                        <DropdownMenuItem onClick={handleImportAction}>
+                            <LucideIcon.Upload className="mr-2 size-4" />
+                            Import members
+                        </DropdownMenuItem>
 
-                    {memberCount > 0 && (
-                        <>
-                            {/* Export */}
-                            <DropdownMenuItem onClick={handleExport}>
-                                <LucideIcon.Download className="mr-2 size-4" />
-                                {hasFilterOrSearch
-                                    ? `Export ${memberCount.toLocaleString()} members`
-                                    : 'Export all members'}
-                            </DropdownMenuItem>
+                        {memberCount > 0 && (
+                            <>
+                                {/* Export */}
+                                <DropdownMenuItem onClick={handleExport}>
+                                    <LucideIcon.Download className="mr-2 size-4" />
+                                    {hasFilterOrSearch
+                                        ? `Export ${memberCount.toLocaleString()} members`
+                                        : 'Export all members'}
+                                </DropdownMenuItem>
 
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setShowAddLabelModal(true)}>
-                                <LucideIcon.Tags className="mr-2 size-4" />
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setShowAddLabelModal(true)}>
+                                    <LucideIcon.Tags className="mr-2 size-4" />
                                     Add label to {memberCount.toLocaleString()} {memberCount === 1 ? 'member' : 'members'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowRemoveLabelModal(true)}>
-                                <LucideIcon.Tag className="mr-2 size-4" />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowRemoveLabelModal(true)}>
+                                    <LucideIcon.Tag className="mr-2 size-4" />
                                     Remove label from {memberCount.toLocaleString()} {memberCount === 1 ? 'member' : 'members'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                disabled={isLoadingNewsletters}
-                                onClick={() => setShowUnsubscribeModal(true)}
-                            >
-                                <LucideIcon.MailX className="mr-2 size-4" />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    disabled={isLoadingNewsletters}
+                                    onClick={() => setShowUnsubscribeModal(true)}
+                                >
+                                    <LucideIcon.MailX className="mr-2 size-4" />
                                     Unsubscribe {memberCount.toLocaleString()} {memberCount === 1 ? 'member' : 'members'}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                disabled={!canBulkDelete}
-                                onClick={() => setShowDeleteModal(true)}
-                            >
-                                <LucideIcon.Trash2 className="mr-2 size-4" />
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    disabled={!canBulkDelete}
+                                    onClick={() => setShowDeleteModal(true)}
+                                >
+                                    <LucideIcon.Trash2 className="mr-2 size-4" />
                                     Delete {memberCount.toLocaleString()} {memberCount === 1 ? 'member' : 'members'}
-                            </DropdownMenuItem>
-                        </>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
 
             {/* New Member Button - styled like Tags */}
             <Button asChild>
